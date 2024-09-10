@@ -1,13 +1,22 @@
 const mongoose = require('mongoose');
 
+//Notification schema definition
 const notificationSchema = new mongoose.Schema({
+  message: {
+    type: String,
+    required: true,
+  },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Users',
   },
-  message: {
-    type: String,
-    required: true,
+  createdAt:{
+    type: Date,
+    default:Date.now
+  },
+  isRead:{
+    type: Boolean,
+    default:false
   }
 });
 

@@ -1,5 +1,6 @@
 const mongoose=require('mongoose');
 
+//Song schema definition
 const songSchema = new mongoose.Schema({
     songName:{
         type: String,
@@ -29,7 +30,8 @@ const songSchema = new mongoose.Schema({
         type: Boolean, 
         default: true 
     }
-})
+});
+
 
 const Songs= mongoose.model('Songs',songSchema);
 

@@ -1,6 +1,6 @@
 const Playlists=require('../models/playlist.js');
-const Songs=require('../models/song.js');
 
+//Retrieve all playlists created by every user.
 exports.getAllPlaylists = async (req, res) => {
     try {
         const playlists = await Playlists.find();
@@ -10,6 +10,7 @@ exports.getAllPlaylists = async (req, res) => {
     }
 };
 
+//Retrieve playlists created by a particular user
 exports.getAllPlaylistsOfUser = async(req,res)=>{
     try{
         const id=req.user.id;
@@ -23,6 +24,7 @@ exports.getAllPlaylistsOfUser = async(req,res)=>{
     }
 };
 
+//Retrieve playlist by id created by a particular user
 exports.getPlaylistById = async (req, res) => {
     try {
         const playlist = await Playlists.findById(req.params.id);
@@ -30,7 +32,7 @@ exports.getPlaylistById = async (req, res) => {
             return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to retrieve this playlist' });
+            return res.status(404).send({ message: 'Not authorized to retrieve this playlist' });
         }
         res.status(200).send(playlist);
     } catch (error) {
@@ -38,43 +40,59 @@ exports.getPlaylistById = async (req, res) => {
     }
 };
 
+//Create Playlist
 exports.createPlaylist = async (req, res) => {
     try {
+        const name=req.body.name;
+        const playlist=await Playlists.findOne({name});
+        if(playlist){
+            return res.status(201).send({message:`Playlist with that name already exists`});
+        }
         const newPlaylist = new Playlists({
-             ...req.body, 
-             userId: req.user.id 
+             name:name, 
+             userId: req.user.id,
+             songs:[]
             });
         await newPlaylist.save();
         res.status(200).send({message:'Playlist created..',newPlaylist});
     } catch (error) {
-        res.status(500).send({ message: 'Error creating playlist',error });
+        res.status(500).send({ message: 'Error creating playlist',error:error.message });
     }
 };
 
+//Update playlist created by a particular user
 exports.updatePlaylist = async (req, res) => {
     try {
-        const playlist=await Playlists.findById(req,params.id);
+        const name=req.body.name;
+        const playlist=await Playlists.findById(req.params.id);
         if(!playlist){
-            res.status(404).send({ message: 'Playlist not found' });
+            return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to update this playlist' });
+            return res.status(404).send({ message: 'Not authorized to update this playlist' });
         }
-        const updatedPlaylist = await Playlists.findByIdAndUpdate(req.params.id, req.body, { new: true });
-        res.status(200).send(updatedPlaylist);
+        const Dbplaylist=await Playlists.findOne({name});
+        if(Dbplaylist){
+            return res.status(201).send({message:`Playlist with that name already exists`});
+        }
+        
+        
+        const updatedPlaylist = await Playlists.findByIdAndUpdate(req.params.id, {name:req.body.name}, { new: true });
+        res.status(200).send({message:'Playlist updated successfully...'});
     } catch (error) {
         res.status(500).send({ message: 'Error updating playlist',error });
     }
 };
 
+//Delete playlist created by a particular user
 exports.deletePlaylist = async (req, res) => {
     try {
-        const playlist=await Playlists.findById(req,params.id);
+        const playlist=await Playlists.findById(req.params.id);
         if(!playlist){
-            res.status(404).send({ message: 'Playlist not found' });
+            return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to delete this playlist' });
+            return res.status(404).send({ message: 'Not authorized to delete this playlist' });
         }
         await Playlists.findByIdAndDelete(req.params.id);
         res.status(200).send({ message: 'Playlist deleted' });
@@ -83,6 +101,7 @@ exports.deletePlaylist = async (req, res) => {
     }
 };
 
+//Adding only visible songs to the playlist created by a particular user
 exports.addSongsToPlaylist = async (req, res) => {
     try {
 
@@ -96,48 +115,39 @@ exports.addSongsToPlaylist = async (req, res) => {
             return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to  this playlist' });
+            return res.status(404).send({ message: 'Not authorized to  this playlist' });
         }
 
-        const validSongs = await Songs.find({ _id: { $in: songIdsArray }, visible: true });
-
-        if (validSongs.length === 0) {
-            return res.status(400).send({ message: 'No valid visible songs to add' });
-        }
-
-        const validSongIds = validSongs.map(song => song._id.toString());
-
-        const uniqueSongIds = [...new Set([...playlist.songs, ...validSongIds])];
+        const uniqueSongIds = [...new Set([...playlist.songs, ...songIdsArray])];
 
         playlist.songs = uniqueSongIds;
         
         await playlist.save();
 
-        res.status(200).send(playlist);
+        res.status(200).send({message:`Song added to playlist ${playlist.name} succuessfully...`});
     } catch (error) {
         res.status(500).send({ message: 'Error adding songs to playlist:', error: error.message });
     }
 };
 
-
+//Retrieve all songs in a playlist..
 exports.getAllSongsInPlaylist=async(req,res)=>{
     try{
         const playlist=await Playlists.findById(req.params.id).populate('songs');
         if(!playlist){
-            res.status(404).send({ message: 'Playlist not found' });
+            return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to fetch this playlist' });
+            return res.status(404).send({ message: 'Not authorized to fetch this playlist' });
         }
-        const songs=playlist.songs;
-        
+        const songs=playlist.songs.filter(song=>(song.isVisible===true));
         res.status(200).send(songs);
     }catch(error){
         res.status(500).send({ message: 'Error fetching songs in playlist..',error });
     }
 };
 
-
+//Remove song from playlist.
 exports.removeSongFromPlaylist = async (req, res) => {
     try {
         const playlistId = req.params.id;
@@ -148,7 +158,7 @@ exports.removeSongFromPlaylist = async (req, res) => {
             return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to  this playlist' });
+            return res.status(404).send({ message: 'Not authorized to  this playlist' });
         }
         playlist.songs.pull(songId);
         await playlist.save();
@@ -160,7 +170,7 @@ exports.removeSongFromPlaylist = async (req, res) => {
     }
 };
 
-
+//Retrieve song by id from playlist.
 exports.getSongByIdFromPlaylist = async (req, res) => {
     try {
         const playlistId= req.params.id;
@@ -171,7 +181,7 @@ exports.getSongByIdFromPlaylist = async (req, res) => {
             return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to  this playlist' });
+            return res.status(404).send({ message: 'Not authorized to  this playlist' });
         }
         
         const song = playlist.songs.find(song => song._id.toString() === songId);
@@ -185,8 +195,7 @@ exports.getSongByIdFromPlaylist = async (req, res) => {
     }
 };
 
-
-
+//Retrieve songs by name in playlist
 exports.getSongsByNameInPlaylist = async (req, res) => {
     try {
         const playlistId = req.params.id;
@@ -197,7 +206,7 @@ exports.getSongsByNameInPlaylist = async (req, res) => {
             return res.status(404).send({ message: 'Playlist not found' });
         }
         if(playlist.userId.toString() !== req.user.id.toString()){
-            res.status(404).send({ message: 'Not authorized to  this playlist' });
+            return res.status(404).send({ message: 'Not authorized to  this playlist' });
         }
 
         const songs = playlist.songs.filter(song => 

@@ -19,7 +19,7 @@ exports.protect = async (req, res, next) => {
     }
 
     if (!token) {
-        res.status(401).send({ message: 'Not authorized, no token' });
+        res.status(401).send({ message: 'Not authorized, Should login first..' });
     }
 };
 
@@ -28,6 +28,6 @@ exports.admin = (req, res, next) => {
     if (req.user && req.user.role === "admin") {
         next();
     } else {
-        res.status(403).send({ message: 'Not authorized as a user' });
+        res.status(403).send({ message: 'Not authorized as a normal user' });
     }
 };

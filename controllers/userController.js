@@ -1,12 +1,14 @@
 const Users=require('../models/user.js');
 const jwt=require('jsonwebtoken');
 
+//Generatig token for the user who is logging in
 const generateToken = (id, role) => {
     return jwt.sign({ id, role }, process.env.SECRET_KEY, {
-        expiresIn: '5h',
+        expiresIn: '5h'
     });
 };
 
+//Retrieve all the users registered to our application
 exports.getAllUsers= async(req,res)=>{
     try{
         const users=await Users.find();
@@ -16,16 +18,18 @@ exports.getAllUsers= async(req,res)=>{
     }
 };
 
+//Logging in user
 exports.loginUser=async (req,res)=>{
     try{
         const {emailId,password}=req.body
         const user=await Users.findOne({emailId});
         if(user && await user.matchPassword(password)){
+            const token=generateToken(user._id,user.role);
             res.status(200).send({
                 _id: user._id,
                 userName: user.userName,
                 role: user.role,
-                token: generateToken(user._id, user.role),
+                token: token
             });
         }
         else{
@@ -34,12 +38,20 @@ exports.loginUser=async (req,res)=>{
     }catch(error){
         res.status(500).send({message:'Error Logging In',error:error.message});
     }
-
 };
 
+//Registering the user
 exports.registerUser=async(req,res)=>{
     try{
         const emailId=req.body.emailId;
+        const phoneNumber=req.body.phoneNumber;
+        const regEx=/^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$/;
+        if(!emailId.match(regEx)){
+            return res.status(201).send({message:'Invalid email id'});
+        }
+        if(phoneNumber<1000000000 || phoneNumber>9999999999){
+            return res.status(201).send({message:'Invalid phone number'})
+        }
         const userExist=await Users.findOne({emailId});
         if(userExist){
             return res.status(400).send({message:'User already exists'});
@@ -58,12 +70,13 @@ exports.registerUser=async(req,res)=>{
     }
 };
 
+//Retrieve the user details who is logged into our application
 exports.getUserProfile = async (req, res) => {
     try{
         const uid=req.user.id;
         const user = await Users.findById(uid);
         if (!user) {
-            res.status(404).send({ message: 'User not found' });   
+            return res.status(404).send({ message: 'User not found' });   
         }
         res.status(200).send({
             _id: user._id,
@@ -77,6 +90,7 @@ exports.getUserProfile = async (req, res) => {
     }
 };
 
+//Delete user from the database can only be done by admin
 exports.deleteUser=async(req,res)=>{
     try{
         const id=req.params.id;

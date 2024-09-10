@@ -1,5 +1,6 @@
 const mongoose = require('mongoose');
 
+//Playlist schema definition
 const playlistSchema= new mongoose.Schema({
     name:{
         type: String,
